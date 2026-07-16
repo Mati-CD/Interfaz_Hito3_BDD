@@ -5,11 +5,11 @@ Guía rápida de configuración local de la base de datos y ejecución del proye
 ---
 
 ## Paso 1: Descargar e Instalar PostgreSQL
-1. Descarga el instalador oficial de PostgreSQL (recomendamos la versión 15 o 16):
+1. Descarga el instalador oficial de PostgreSQL (las pruebas se hicieron con la versión 16):
    👉 [Descargar PostgreSQL](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads)
 2. Abre el instalador de Windows y haz clic en **Siguiente (Next)** a todo, dejando los directorios de instalación y el puerto (`5432`) por defecto.
 3. **Casillas de componentes:** Deja marcados todos los componentes (incluyendo pgAdmin 4, Stack Builder y Command Line Tools).
-4. **Contraseña:** Elige una contraseña de administrador muy sencilla y fácil de recordar (por ejemplo: `12345`). La usaremos más adelante.
+4. **Contraseña:** Elige una contraseña de administrador muy sencilla y fácil de recordar (por ejemplo: `12345`). La necesitarás más adelante.
 5. Al terminar de instalar, desmarca la casilla de abrir *Stack Builder* y haz clic en **Finalizar (Finish)**.
 
 ---
@@ -35,13 +35,13 @@ Abre tu terminal en la raíz del proyecto y realiza lo siguiente:
 
 1. **Cargar la base de datos (se ejecuta solo la primera vez):**
    ```bash
-   dart import_db.dart
+   dart lib/import_db.dart
    ```
    *(Este comando leerá de inmediato tu archivo `bd/iniciar_bd.sql` y cargará todo el esquema `registro_costos_marginales` y datos de prueba a tu PostgreSQL local en tan solo ~20 segundos).*
 
 2. **Iniciar el Servidor Puente (debe mantenerse corriendo en segundo plano):**
    ```bash
-   dart server.dart
+   dart lib/server.dart
    ```
    *(Este servidor actúa de puente HTTP para permitir que la aplicación en versión Web pueda comunicarse con tu PostgreSQL local saltándose las restricciones de red del navegador).*
 
@@ -51,7 +51,7 @@ Abre tu terminal en la raíz del proyecto y realiza lo siguiente:
 Abre una **segunda terminal** (sin cerrar la terminal donde iniciaste `server.dart`) y ejecuta el siguiente comando:
 
 ```bash
-flutter run -d web-server -t main.dart --dart-define-from-file=db_config.json
+flutter run -d web-server --dart-define-from-file=db_config.json
 ```
 *(Una vez que cargue, abre la dirección que te entrega en la terminal en tu navegador favorito como Firefox, Chrome o Edge).*
 
