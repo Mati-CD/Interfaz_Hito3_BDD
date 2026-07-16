@@ -571,6 +571,18 @@ class BarraDetailScreen extends StatelessWidget {
         ].reduce((curr, next) => curr > next ? curr : next);
         final double maxY = maxVal > 0 ? maxVal * 1.25 : 100.0;
 
+        // Calcular un intervalo amigable y más detallado para el eje Y
+        double calculateInterval(double max) {
+          if (max <= 0) return 10;
+          if (max <= 25) return 2.5;
+          if (max <= 50) return 5;
+          if (max <= 100) return 10;
+          if (max <= 150) return 15;
+          if (max <= 250) return 25;
+          return 50;
+        }
+        final double yInterval = calculateInterval(maxVal);
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
@@ -684,6 +696,7 @@ class BarraDetailScreen extends StatelessWidget {
                                 sideTitles: SideTitles(
                                   showTitles: true,
                                   reservedSize: 40,
+                                  interval: yInterval,
                                   getTitlesWidget: (value, meta) {
                                     return Text(
                                       '${value.toInt()}',
