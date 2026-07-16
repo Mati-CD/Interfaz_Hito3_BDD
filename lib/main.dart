@@ -79,26 +79,35 @@ class PostgresDatabase {
   }
 
   // 4. DETALLE: Comparativa Estacional
-  static Future<Map<String, dynamic>> getComparativaEstacional(
+  static Future<List<Map<String, dynamic>>> getComparativaEstacional(
     int idBarra,
   ) async {
     final result = await DatabaseService.query(
       '''
-        SELECT
-          COALESCE(AVG(c.valor_cmg), 0.0) as avg_global,
-          COALESCE(AVG(CASE WHEN t.nombre_temporada = 'Verano' THEN c.valor_cmg END), 0.0) as avg_verano
+        SELECT 
+          b.id_bloquehorario,
+          b.hora_inicio::text as hora_inicio,
+          b.hora_fin::text as hora_fin,
+          CASE 
+            WHEN t.nombre_temporada IN ('Otoño', 'Invierno') THEN 'Abril - Septiembre (Otoño/Invierno)'
+            ELSE 'Octubre - Marzo (Primavera/Verano)'
+          END as periodo_estacional,
+          COALESCE(AVG(c.valor_cmg), 0.0) as avg_valor
         FROM costo_marginal c
-        LEFT JOIN temporada t ON c.id_temporada = t.id_temporada
+        JOIN bloque_horario b ON c.id_bloquehorario = b.id_bloquehorario
+        JOIN temporada t ON c.id_temporada = t.id_temporada
         WHERE c.id_barra = @id
+        GROUP BY b.id_bloquehorario, b.hora_inicio, b.hora_fin, periodo_estacional
+        ORDER BY b.id_bloquehorario, periodo_estacional
       ''',
       parameters: {'id': idBarra},
     );
 
-    final fila = result.first;
-    return {
-      'avg_verano': double.tryParse(fila['avg_verano']?.toString() ?? '') ?? 0.0,
-      'avg_global': double.tryParse(fila['avg_global']?.toString() ?? '') ?? 0.0,
-    };
+    return result.map((fila) {
+      final map = Map<String, dynamic>.from(fila);
+      map['avg_valor'] = double.tryParse(map['avg_valor']?.toString() ?? '') ?? 0.0;
+      return map;
+    }).toList();
   }
 
   // 5. DETALLE: Historial Cronológico
@@ -132,127 +141,6 @@ class PostgresDatabase {
 }
 
 
-// // ==========================================
-// // 0. MOCK DATABASE (REPRESENTACIÓN DE TU DDL)
-// // ==========================================
-// class MockDatabase {
-//   // Simulación Tabla: encargado
-//   static const List<Map<String, dynamic>> encargados = [
-//     {
-//       'rut_encargado': '15.444.333-2',
-//       'nombre_encargado': 'Sebastian Perez',
-//       'correo_encargado': 'Sperez@megaelectric.cl'
-//     },
-//   ];
-
-//   // Simulación Tabla: barra (Relacionada con el RUT del encargado)
-//   static const List<Map<String, dynamic>> barras = [
-//     {
-//       'id_barra': 321,
-//       'nombre_barra': 'Barra Biobío A',
-//       'nivel_tension_kv': 110.0,
-//       'rut_encargado': '15.444.333-2',
-//       'id_subestacion': 1
-//     },
-//     {
-//       'id_barra': 324,
-//       'nombre_barra': 'Barra San Pedro',
-//       'nivel_tension_kv': 220.0,
-//       'rut_encargado': '15.444.333-2',
-//       'id_subestacion': 2
-//     },
-//   ];
-
-//   // Simulación Tabla: costo_marginal
-//   static const List<Map<String, dynamic>> costosMarginales = [
-//     // Registros para Barra Biobío A (id_barra: 321)
-//     {'id_cmg': 1, 'valor_cmg': 50.0, 'año': 2025, 'mes': 1, 'dia': 15, 'hora': '10:00', 'id_barra': 321, 'temporada': 'Verano'},
-//     {'id_cmg': 2, 'valor_cmg': 120.5, 'año': 2025, 'mes': 1, 'dia': 15, 'hora': '14:00', 'id_barra': 321, 'temporada': 'Verano'},
-//     {'id_cmg': 3, 'valor_cmg': 10.0, 'año': 2025, 'mes': 7, 'dia': 10, 'hora': '03:00', 'id_barra': 321, 'temporada': 'Invierno'},
-//     {'id_cmg': 4, 'valor_cmg': 85.0, 'año': 2025, 'mes': 7, 'dia': 10, 'hora': '19:00', 'id_barra': 321, 'temporada': 'Invierno'},
-
-//     // Registros para Barra San Pedro (id_barra: 324)
-//     {'id_cmg': 5, 'valor_cmg': 60.0, 'año': 2025, 'mes': 2, 'dia': 05, 'hora': '12:00', 'id_barra': 324, 'temporada': 'Verano'},
-//     {'id_cmg': 6, 'valor_cmg': 45.2, 'año': 2025, 'mes': 2, 'dia': 05, 'hora': '18:00', 'id_barra': 324, 'temporada': 'Verano'},
-//     {'id_cmg': 7, 'valor_cmg': 95.0, 'año': 2025, 'mes': 8, 'dia': 22, 'hora': '21:00', 'id_barra': 324, 'temporada': 'Invierno'},
-//   ];
-
-//   // --- QUERIES SIMULADAS (DML) ---
-
-//   // SELECT * FROM encargado WHERE rut_encargado = ? LIMIT 1
-//   static Future<Map<String, dynamic>?> login(String rut) async {
-//     await Future.delayed(const Duration(milliseconds: 500)); // Simula latencia de red/disco
-//     try {
-//       return encargados.firstWhere((e) => e['rut_encargado'] == rut);
-//     } catch (e) {
-//       return null;
-//     }
-//   }
-
-//   // SELECT * FROM barra WHERE rut_encargado = ?
-//   static Future<List<Map<String, dynamic>>> getBarrasByEncargado(String rut) async {
-//     await Future.delayed(const Duration(milliseconds: 500));
-//     return barras.where((b) => b['rut_encargado'] == rut).toList();
-//   }
-
-//   // SELECT AVG(valor_cmg), MAX(valor_cmg), MIN(valor_cmg), COUNT(*) FROM costo_marginal WHERE id_barra = ? AND año = ?
-//   static Future<Map<String, dynamic>> getResumenAnual(int idBarra, int anio) async {
-//     await Future.delayed(const Duration(milliseconds: 600));
-//     final registros = costosMarginales.where((c) => c['id_barra'] == idBarra && c['año'] == anio).toList();
-
-//     if (registros.isEmpty) {
-//       return {'avg': 0.0, 'max': 0.0, 'min': 0.0, 'count': 0};
-//     }
-
-//     double sum = 0;
-//     double max = (registros.first['valor_cmg'] as num).toDouble();
-//     double min = (registros.first['valor_cmg'] as num).toDouble();
-
-//     for (var r in registros) {
-//       double val = (r['valor_cmg'] as num).toDouble();
-//       sum += val;
-//       if (val > max) max = val;
-//       if (val < min) min = val;
-//     }
-
-//     return {
-//       'avg': sum / registros.length,
-//       'max': max,
-//       'min': min,
-//       'count': registros.length
-//     };
-//   }
-
-//   // Simulación de consulta comparativa: Promedio Verano vs Promedio Global por Barra
-//   static Future<Map<String, dynamic>> getComparativaEstacional(int idBarra) async {
-//     await Future.delayed(const Duration(milliseconds: 500));
-//     final todos = costosMarginales.where((c) => c['id_barra'] == idBarra).toList();
-//     final verano = todos.where((c) => c['temporada'] == 'Verano').toList();
-
-//     double avgGlobal = 0.0;
-//     if (todos.isNotEmpty) {
-//       final sumGlobal = todos.map((c) => (c['valor_cmg'] as num).toDouble()).reduce((a, b) => a + b);
-//       avgGlobal = sumGlobal / todos.length;
-//     }
-
-//     double avgVerano = 0.0;
-//     if (verano.isNotEmpty) {
-//       final sumVerano = verano.map((c) => (c['valor_cmg'] as num).toDouble()).reduce((a, b) => a + b);
-//       avgVerano = sumVerano / verano.length;
-//     }
-
-//     return {
-//       'avg_verano': avgVerano,
-//       'avg_global': avgGlobal,
-//     };
-//   }
-
-//   // SELECT * FROM costo_marginal WHERE id_barra = ? ORDER BY año, mes, dia, hora
-//   static Future<List<Map<String, dynamic>>> getHistorial(int idBarra) async {
-//     await Future.delayed(const Duration(milliseconds: 400));
-//     return costosMarginales.where((c) => c['id_barra'] == idBarra).toList();
-//   }
-// }
 
 // ==========================================
 // 1. PANTALLA DE ACCESO (LOGIN)
@@ -637,7 +525,7 @@ class BarraDetailScreen extends StatelessWidget {
 
   // Pestaña 2: Comparativa Estacional vs Histórico (RF8)
   Widget _buildComparativaTab() {
-    return FutureBuilder<Map<String, dynamic>>(
+    return FutureBuilder<List<Map<String, dynamic>>>(
       future: PostgresDatabase.getComparativaEstacional(idBarra),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -652,55 +540,191 @@ class BarraDetailScreen extends StatelessWidget {
             ),
           );
         }
-        final data = snapshot.data!;
 
-        return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+        final List<Map<String, dynamic>> rows = snapshot.data!;
+        
+        // Función auxiliar para obtener el promedio de un bloque y temporada específicos
+        double getAvg(int blockId, String periodPattern) {
+          final match = rows.firstWhere(
+            (r) => r['id_bloquehorario'] == blockId && 
+                   r['periodo_estacional'].toString().contains(periodPattern),
+            orElse: () => {'avg_valor': 0.0},
+          );
+          return (match['avg_valor'] as num).toDouble();
+        }
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Costo Promedio por Bloque Horario y Estacionalidad',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'A continuación se detallan los costos promedio (USD/MWh) obtenidos directamente de los registros de la base de datos para cada período.',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              const SizedBox(height: 20),
+              
+              // Bloque 1: 00:00 a 08:00
+              _buildBlockCard(
+                title: 'Bloque Horario: 00:00 - 08:00',
+                subtitle: 'Periodo de madrugada y baja demanda',
+                icon: Icons.nightlight_round,
+                iconColor: Colors.indigo,
+                avgAutumn: getAvg(1001, 'Abril'),
+                avgSpring: getAvg(1001, 'Octubre'),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Bloque 2: 09:00 a 17:00
+              _buildBlockCard(
+                title: 'Bloque Horario: 09:00 - 17:00',
+                subtitle: 'Periodo diario e influencia de generación solar',
+                icon: Icons.wb_sunny,
+                iconColor: Colors.amber,
+                avgAutumn: getAvg(1002, 'Abril'),
+                avgSpring: getAvg(1002, 'Octubre'),
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Bloque 3: 18:00 a 23:00
+              _buildBlockCard(
+                title: 'Bloque Horario: 18:00 - 23:00',
+                subtitle: 'Periodo de punta nocturna y mayor consumo',
+                icon: Icons.wb_twilight,
+                iconColor: Colors.deepOrange,
+                avgAutumn: getAvg(1003, 'Abril'),
+                avgSpring: getAvg(1003, 'Octubre'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildBlockCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color iconColor,
+    required double avgAutumn,
+    required double avgSpring,
+  }) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
               children: [
-                const Icon(
-                  Icons.compare_arrows_rounded,
-                  size: 64,
-                  color: Colors.blue,
-                ),
-                const SizedBox(height: 20),
-                const Text(
-                  'Comparación de Desempeño',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 30),
-                Text(
-                  'Promedio Verano:',
-                  style: TextStyle(fontSize: 15, color: Colors.grey[700]),
-                ),
-                Text(
-                  '${data['avg_verano'].toStringAsFixed(2)} USD/MWh',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(height: 24),
-                Text(
-                  'Promedio Histórico Global:',
-                  style: TextStyle(fontSize: 15, color: Colors.grey[700]),
-                ),
-                Text(
-                  '${data['avg_global'].toStringAsFixed(2)} USD/MWh',
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.grey,
+                Icon(icon, color: iconColor, size: 28),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        subtitle,
+                        style: const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-        );
-      },
+            const SizedBox(height: 16),
+            const Divider(),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                // Otoño/Invierno (Abril - Septiembre)
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Icon(Icons.ac_unit, color: Colors.blueAccent, size: 20),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Abril - Septiembre',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      const Text(
+                        '(Otoño / Invierno)',
+                        style: TextStyle(fontSize: 10, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${avgAutumn.toStringAsFixed(2)} USD/MWh',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.blueAccent,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Divisor vertical central
+                Container(
+                  height: 60,
+                  width: 1,
+                  color: Colors.grey[300],
+                ),
+                
+                // Primavera/Verano (Octubre - Marzo)
+                Expanded(
+                  child: Column(
+                    children: [
+                      const Icon(Icons.wb_sunny_outlined, color: Colors.amber, size: 20),
+                      const SizedBox(height: 6),
+                      const Text(
+                        'Octubre - Marzo',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      const Text(
+                        '(Primavera / Verano)',
+                        style: TextStyle(fontSize: 10, color: Colors.grey),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${avgSpring.toStringAsFixed(2)} USD/MWh',
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 
