@@ -569,7 +569,6 @@ class BarraDetailScreen extends StatelessWidget {
           avg1002Autumn, avg1002Spring,
           avg1003Autumn, avg1003Spring
         ].reduce((curr, next) => curr > next ? curr : next);
-        final double maxY = maxVal > 0 ? maxVal * 1.25 : 100.0;
 
         // Calcular un intervalo amigable y más detallado para el eje Y
         double calculateInterval(double max) {
@@ -582,6 +581,11 @@ class BarraDetailScreen extends StatelessWidget {
           return 50;
         }
         final double yInterval = calculateInterval(maxVal);
+
+        // Ajustar maxY para que sea un múltiplo exacto del intervalo y evitar choque de etiquetas
+        final double maxY = maxVal > 0 
+            ? ((maxVal * 1.25) / yInterval).ceil() * yInterval 
+            : 100.0;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
