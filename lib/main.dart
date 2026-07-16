@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:interfaz_hito3_bdd/database_service.dart';
+import 'package:fl_chart/fl_chart.dart';
+
 
 
 void main() {
@@ -553,6 +555,22 @@ class BarraDetailScreen extends StatelessWidget {
           return (match['avg_valor'] as num).toDouble();
         }
 
+        final double avg1001Autumn = getAvg(1001, 'Abril');
+        final double avg1001Spring = getAvg(1001, 'Octubre');
+        
+        final double avg1002Autumn = getAvg(1002, 'Abril');
+        final double avg1002Spring = getAvg(1002, 'Octubre');
+        
+        final double avg1003Autumn = getAvg(1003, 'Abril');
+        final double avg1003Spring = getAvg(1003, 'Octubre');
+
+        final double maxVal = [
+          avg1001Autumn, avg1001Spring,
+          avg1002Autumn, avg1002Spring,
+          avg1003Autumn, avg1003Spring
+        ].reduce((curr, next) => curr > next ? curr : next);
+        final double maxY = maxVal > 0 ? maxVal * 1.25 : 100.0;
+
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20.0),
           child: Column(
@@ -569,14 +587,198 @@ class BarraDetailScreen extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               
+              // Gráfico de Barras Agrupadas
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Comparación Gráfica (USD/MWh)',
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        height: 200,
+                        child: BarChart(
+                          BarChartData(
+                            alignment: BarChartAlignment.spaceAround,
+                            maxY: maxY,
+                            barGroups: [
+                              BarChartGroupData(
+                                x: 0,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: avg1001Autumn,
+                                    color: Colors.blueAccent,
+                                    width: 14,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(4),
+                                      topRight: Radius.circular(4),
+                                    ),
+                                  ),
+                                  BarChartRodData(
+                                    toY: avg1001Spring,
+                                    color: Colors.amber,
+                                    width: 14,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(4),
+                                      topRight: Radius.circular(4),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              BarChartGroupData(
+                                x: 1,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: avg1002Autumn,
+                                    color: Colors.blueAccent,
+                                    width: 14,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(4),
+                                      topRight: Radius.circular(4),
+                                    ),
+                                  ),
+                                  BarChartRodData(
+                                    toY: avg1002Spring,
+                                    color: Colors.amber,
+                                    width: 14,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(4),
+                                      topRight: Radius.circular(4),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              BarChartGroupData(
+                                x: 2,
+                                barRods: [
+                                  BarChartRodData(
+                                    toY: avg1003Autumn,
+                                    color: Colors.blueAccent,
+                                    width: 14,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(4),
+                                      topRight: Radius.circular(4),
+                                    ),
+                                  ),
+                                  BarChartRodData(
+                                    toY: avg1003Spring,
+                                    color: Colors.amber,
+                                    width: 14,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(4),
+                                      topRight: Radius.circular(4),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            titlesData: FlTitlesData(
+                              show: true,
+                              leftTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  reservedSize: 40,
+                                  getTitlesWidget: (value, meta) {
+                                    return Text(
+                                      '${value.toInt()}',
+                                      style: const TextStyle(fontSize: 9, color: Colors.grey),
+                                    );
+                                  },
+                                ),
+                              ),
+                              rightTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              topTitles: const AxisTitles(
+                                sideTitles: SideTitles(showTitles: false),
+                              ),
+                              bottomTitles: AxisTitles(
+                                sideTitles: SideTitles(
+                                  showTitles: true,
+                                  getTitlesWidget: (value, meta) {
+                                    switch (value.toInt()) {
+                                      case 0:
+                                        return const Padding(
+                                          padding: EdgeInsets.only(top: 6.0),
+                                          child: Text('00:00-08:00', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                        );
+                                      case 1:
+                                        return const Padding(
+                                          padding: EdgeInsets.only(top: 6.0),
+                                          child: Text('09:00-17:00', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                        );
+                                      case 2:
+                                        return const Padding(
+                                          padding: EdgeInsets.only(top: 6.0),
+                                          child: Text('18:00-23:00', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold)),
+                                        );
+                                      default:
+                                        return const Text('');
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                            gridData: FlGridData(
+                              show: true,
+                              drawVerticalLine: false,
+                              getDrawingHorizontalLine: (value) => FlLine(
+                                color: Colors.grey[200]!,
+                                strokeWidth: 1,
+                              ),
+                            ),
+                            borderData: FlBorderData(show: false),
+                            barTouchData: BarTouchData(
+                              enabled: true,
+                              touchTooltipData: BarTouchTooltipData(
+                                getTooltipColor: (_) => Colors.blueGrey.withAlpha(230),
+                                getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                  final String period = rodIndex == 0 ? 'Otoño/Invierno' : 'Primavera/Verano';
+                                  return BarTooltipItem(
+                                    '$period\n',
+                                    const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 10),
+                                    children: <TextSpan>[
+                                      TextSpan(
+                                        text: '${rod.toY.toStringAsFixed(2)} USD',
+                                        style: const TextStyle(color: Colors.yellow, fontSize: 11, fontWeight: FontWeight.w500),
+                                      ),
+                                    ],
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          _buildLegendItem('Abril - Septiembre', Colors.blueAccent),
+                          const SizedBox(width: 24),
+                          _buildLegendItem('Octubre - Marzo', Colors.amber),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              
               // Bloque 1: 00:00 a 08:00
               _buildBlockCard(
                 title: 'Bloque Horario: 00:00 - 08:00',
                 subtitle: 'Periodo de madrugada y baja demanda',
                 icon: Icons.nightlight_round,
                 iconColor: Colors.indigo,
-                avgAutumn: getAvg(1001, 'Abril'),
-                avgSpring: getAvg(1001, 'Octubre'),
+                avgAutumn: avg1001Autumn,
+                avgSpring: avg1001Spring,
               ),
               
               const SizedBox(height: 16),
@@ -587,8 +789,8 @@ class BarraDetailScreen extends StatelessWidget {
                 subtitle: 'Periodo diario e influencia de generación solar',
                 icon: Icons.wb_sunny,
                 iconColor: Colors.amber,
-                avgAutumn: getAvg(1002, 'Abril'),
-                avgSpring: getAvg(1002, 'Octubre'),
+                avgAutumn: avg1002Autumn,
+                avgSpring: avg1002Spring,
               ),
               
               const SizedBox(height: 16),
@@ -599,8 +801,8 @@ class BarraDetailScreen extends StatelessWidget {
                 subtitle: 'Periodo de punta nocturna y mayor consumo',
                 icon: Icons.wb_twilight,
                 iconColor: Colors.deepOrange,
-                avgAutumn: getAvg(1003, 'Abril'),
-                avgSpring: getAvg(1003, 'Octubre'),
+                avgAutumn: avg1003Autumn,
+                avgSpring: avg1003Spring,
               ),
             ],
           ),
@@ -725,6 +927,26 @@ class BarraDetailScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLegendItem(String text, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: const TextStyle(fontSize: 11, color: Colors.grey, fontWeight: FontWeight.w500),
+        ),
+      ],
     );
   }
 
