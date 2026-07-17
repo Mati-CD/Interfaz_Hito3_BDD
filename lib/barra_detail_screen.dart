@@ -20,6 +20,7 @@ class BarraDetailScreen extends StatefulWidget {
 class _BarraDetailScreenState extends State<BarraDetailScreen> {
   List<int> _aniosDisponibles = [];
   int? _selectedAnio;
+  int _selectedBlock = 1;
   bool _loadingAnios = true;
   String? _errorAnios;
 
@@ -187,6 +188,7 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
                             if (newValue != null) {
                               setState(() {
                                 _selectedAnio = newValue;
+                                _selectedBlock = 1; // Reset to Block 1 when changing year
                               });
                             }
                           },
@@ -217,39 +219,65 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Bloque 1: 00:00 a 08:00
-              _buildBlockCard(
-                title: 'Bloque Horario: 00:00 - 08:00',
-                subtitle: 'Periodo de madrugada y baja demanda',
-                icon: Icons.nightlight_round,
-                iconColor: Colors.indigo,
-                avgAutumn: avg1001Autumn,
-                avgSpring: avg1001Spring,
+              // Selector de bloques
+              Center(
+                child: SegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment<int>(
+                      value: 1,
+                      label: Text('Bloque 1'),
+                      icon: Icon(Icons.nightlight_round, size: 16),
+                    ),
+                    ButtonSegment<int>(
+                      value: 2,
+                      label: Text('Bloque 2'),
+                      icon: Icon(Icons.wb_sunny, size: 16),
+                    ),
+                    ButtonSegment<int>(
+                      value: 3,
+                      label: Text('Bloque 3'),
+                      icon: Icon(Icons.wb_twilight, size: 16),
+                    ),
+                  ],
+                  selected: {_selectedBlock},
+                  onSelectionChanged: (Set<int> newSelection) {
+                    setState(() {
+                      _selectedBlock = newSelection.first;
+                    });
+                  },
+                  showSelectedIcon: false,
+                ),
               ),
+              const SizedBox(height: 20),
 
-              const SizedBox(height: 16),
-
-              // Bloque 2: 09:00 a 17:00
-              _buildBlockCard(
-                title: 'Bloque Horario: 09:00 - 17:00',
-                subtitle: 'Periodo diario e influencia de generación solar',
-                icon: Icons.wb_sunny,
-                iconColor: Colors.amber,
-                avgAutumn: avg1002Autumn,
-                avgSpring: avg1002Spring,
-              ),
-
-              const SizedBox(height: 16),
-
-              // Bloque 3: 18:00 a 23:00
-              _buildBlockCard(
-                title: 'Bloque Horario: 18:00 - 23:00',
-                subtitle: 'Periodo de punta nocturna y mayor consumo',
-                icon: Icons.wb_twilight,
-                iconColor: Colors.deepOrange,
-                avgAutumn: avg1003Autumn,
-                avgSpring: avg1003Spring,
-              ),
+              // BlockCard condicional según el bloque seleccionado
+              if (_selectedBlock == 1)
+                _buildBlockCard(
+                  title: 'Bloque Horario: 00:00 - 08:00',
+                  subtitle: 'Periodo de madrugada y baja demanda',
+                  icon: Icons.nightlight_round,
+                  iconColor: Colors.indigo,
+                  avgAutumn: avg1001Autumn,
+                  avgSpring: avg1001Spring,
+                )
+              else if (_selectedBlock == 2)
+                _buildBlockCard(
+                  title: 'Bloque Horario: 09:00 - 17:00',
+                  subtitle: 'Periodo diario e influencia de generación solar',
+                  icon: Icons.wb_sunny,
+                  iconColor: Colors.amber,
+                  avgAutumn: avg1002Autumn,
+                  avgSpring: avg1002Spring,
+                )
+              else if (_selectedBlock == 3)
+                _buildBlockCard(
+                  title: 'Bloque Horario: 18:00 - 23:00',
+                  subtitle: 'Periodo de punta nocturna y mayor consumo',
+                  icon: Icons.wb_twilight,
+                  iconColor: Colors.deepOrange,
+                  avgAutumn: avg1003Autumn,
+                  avgSpring: avg1003Spring,
+                ),
             ],
           ),
         );
