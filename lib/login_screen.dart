@@ -150,12 +150,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   const Icon(Icons.bolt, size: 80, color: Colors.blue),
                   const SizedBox(height: 20),
                   const Text(
-                    'Mega Electric',
-                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                  ),
-                  const Text(
                     'Sistema de Monitoreo CMG',
-                    style: TextStyle(fontSize: 16, color: Colors.grey),
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 40),
 

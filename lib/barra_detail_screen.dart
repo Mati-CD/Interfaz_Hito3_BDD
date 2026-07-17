@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-// ignore: unused_import
 import 'package:fl_chart/fl_chart.dart';
 import 'package:interfaz_hito3_bdd/postgres_database.dart';
 
@@ -66,10 +65,7 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
           ),
         ),
         body: TabBarView(
-          children: [
-            _buildResumenEstadisticoTab(),
-            _buildHistorialTab(),
-          ],
+          children: [_buildResumenEstadisticoTab(), _buildHistorialTab()],
         ),
       ),
     );
@@ -107,7 +103,15 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
     return FutureBuilder<List<dynamic>>(
       future: Future.wait([
         PostgresDatabase.getResumenAnual(widget.idBarra, _selectedAnio!),
-        PostgresDatabase.getComparativaEstacional(widget.idBarra, _selectedAnio!),
+        PostgresDatabase.getComparativaEstacional(
+          widget.idBarra,
+          _selectedAnio!,
+        ),
+        PostgresDatabase.getCostosPorHora(
+          idBarra: widget.idBarra,
+          anio: _selectedAnio!,
+          idBloque: 1000 + _selectedBlock,
+        ),
       ]),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -123,8 +127,12 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
           );
         }
 
-        final Map<String, dynamic> dataAnual = snapshot.data![0] as Map<String, dynamic>;
-        final List<Map<String, dynamic>> rowsEstacional = snapshot.data![1] as List<Map<String, dynamic>>;
+        final Map<String, dynamic> dataAnual =
+            snapshot.data![0] as Map<String, dynamic>;
+        final List<Map<String, dynamic>> rowsEstacional =
+            snapshot.data![1] as List<Map<String, dynamic>>;
+        final List<Map<String, dynamic>> hourlyData =
+            snapshot.data![2] as List<Map<String, dynamic>>;
 
         // Lógica de cálculo estacional
         double getAvg(int blockId, String periodPattern) {
@@ -178,7 +186,10 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
                       child: DropdownButtonHideUnderline(
                         child: DropdownButton<int>(
                           value: _selectedAnio,
-                          icon: const Icon(Icons.arrow_drop_down, color: Colors.blue),
+                          icon: const Icon(
+                            Icons.arrow_drop_down,
+                            color: Colors.blue,
+                          ),
                           style: const TextStyle(
                             color: Colors.blue,
                             fontWeight: FontWeight.bold,
@@ -188,11 +199,14 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
                             if (newValue != null) {
                               setState(() {
                                 _selectedAnio = newValue;
-                                _selectedBlock = 1; // Reset to Block 1 when changing year
+                                _selectedBlock =
+                                    1; // Reset to Block 1 when changing year
                               });
                             }
                           },
-                          items: _aniosDisponibles.map<DropdownMenuItem<int>>((int value) {
+                          items: _aniosDisponibles.map<DropdownMenuItem<int>>((
+                            int value,
+                          ) {
                             return DropdownMenuItem<int>(
                               value: value,
                               child: Text('Año $value'),
@@ -250,11 +264,15 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
               ),
               const SizedBox(height: 20),
 
+              // Gráfico de líneas correspondiente al bloque seleccionado
+              _buildLineChartCard(hourlyData),
+              const SizedBox(height: 20),
+
               // BlockCard condicional según el bloque seleccionado
               if (_selectedBlock == 1)
                 _buildBlockCard(
                   title: 'Bloque Horario: 00:00 - 08:00',
-                  subtitle: 'Periodo de madrugada y baja demanda',
+                  subtitle: 'Periodo nocturno',
                   icon: Icons.nightlight_round,
                   iconColor: Colors.indigo,
                   avgAutumn: avg1001Autumn,
@@ -263,7 +281,7 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
               else if (_selectedBlock == 2)
                 _buildBlockCard(
                   title: 'Bloque Horario: 09:00 - 17:00',
-                  subtitle: 'Periodo diario e influencia de generación solar',
+                  subtitle: 'Periodo diurno',
                   icon: Icons.wb_sunny,
                   iconColor: Colors.amber,
                   avgAutumn: avg1002Autumn,
@@ -272,7 +290,7 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
               else if (_selectedBlock == 3)
                 _buildBlockCard(
                   title: 'Bloque Horario: 18:00 - 23:00',
-                  subtitle: 'Periodo de punta nocturna y mayor consumo',
+                  subtitle: 'Periodo vespertino',
                   icon: Icons.wb_twilight,
                   iconColor: Colors.deepOrange,
                   avgAutumn: avg1003Autumn,
@@ -335,7 +353,12 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -500,6 +523,273 @@ class _BarraDetailScreenState extends State<BarraDetailScreen> {
     );
   }
 
+  Widget _buildLineChartCard(List<Map<String, dynamic>> hourlyData) {
+    final List<FlSpot> autumnSpots = [];
+    final List<FlSpot> springSpots = [];
+
+    for (final row in hourlyData) {
+      final int hour = row['hora_num'] as int;
+      final double value = row['avg_valor'] as double;
+      final String period = row['periodo_estacional'] as String;
+
+      if (period == 'Otoño/Invierno') {
+        autumnSpots.add(FlSpot(hour.toDouble(), value));
+      } else {
+        springSpots.add(FlSpot(hour.toDouble(), value));
+      }
+    }
+
+    autumnSpots.sort((a, b) => a.x.compareTo(b.x));
+    springSpots.sort((a, b) => a.x.compareTo(b.x));
+
+    double maxVal = 100.0;
+    if (autumnSpots.isNotEmpty || springSpots.isNotEmpty) {
+      final double maxAutumn = autumnSpots.isEmpty
+          ? 0.0
+          : autumnSpots
+                .map((s) => s.y)
+                .reduce((curr, next) => curr > next ? curr : next);
+      final double maxSpring = springSpots.isEmpty
+          ? 0.0
+          : springSpots
+                .map((s) => s.y)
+                .reduce((curr, next) => curr > next ? curr : next);
+      final double calculatedMax = maxAutumn > maxSpring
+          ? maxAutumn
+          : maxSpring;
+      if (calculatedMax > 0) {
+        maxVal = calculatedMax;
+      }
+    }
+
+    double calculateInterval(double max) {
+      if (max <= 0) return 10;
+      if (max <= 25) return 5;
+      if (max <= 50) return 10;
+      if (max <= 100) return 20;
+      if (max <= 200) return 40;
+      return 50;
+    }
+
+    final double yInterval = calculateInterval(maxVal);
+    final double maxY = maxVal > 0
+        ? ((maxVal * 1.2) / yInterval).ceil() * yInterval
+        : 100.0;
+
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Evolución Horaria del Costo Promedio (USD/MWh) - Bloque $_selectedBlock',
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 220,
+              child: LineChart(
+                LineChartData(
+                  gridData: FlGridData(
+                    show: true,
+                    drawVerticalLine: true,
+                    horizontalInterval: yInterval,
+                    verticalInterval: 1.0,
+                    getDrawingHorizontalLine: (value) => FlLine(
+                      color: Colors.grey.withAlpha(30),
+                      strokeWidth: 1,
+                    ),
+                    getDrawingVerticalLine: (value) => FlLine(
+                      color: Colors.grey.withAlpha(30),
+                      strokeWidth: 1,
+                    ),
+                  ),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    leftTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 40,
+                        interval: yInterval,
+                        getTitlesWidget: (value, meta) {
+                          return Text(
+                            '${value.toInt()}',
+                            style: const TextStyle(
+                              fontSize: 9,
+                              color: Colors.grey,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 32,
+                        interval: 1.0,
+                        getTitlesWidget: (value, meta) {
+                          final int hour = value.toInt();
+                          final String label =
+                              '${hour.toString().padLeft(2, '0')}:00';
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8.0),
+                            child: Text(
+                              label,
+                              style: const TextStyle(
+                                fontSize: 9,
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  borderData: FlBorderData(
+                    show: true,
+                    border: Border(
+                      bottom: BorderSide(
+                        color: Colors.grey.withAlpha(50),
+                        width: 1,
+                      ),
+                      left: BorderSide(
+                        color: Colors.grey.withAlpha(50),
+                        width: 1,
+                      ),
+                    ),
+                  ),
+                  minX: _selectedBlock == 1
+                      ? 0
+                      : (_selectedBlock == 2 ? 9 : 18),
+                  maxX: _selectedBlock == 1
+                      ? 8
+                      : (_selectedBlock == 2 ? 17 : 23),
+                  minY: 0,
+                  maxY: maxY,
+                  lineBarsData: [
+                    LineChartBarData(
+                      spots: autumnSpots,
+                      isCurved: true,
+                      color: Colors.blueAccent,
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) =>
+                            FlDotCirclePainter(
+                              radius: 4,
+                              color: Colors.blueAccent,
+                              strokeWidth: 1.5,
+                              strokeColor: Colors.white,
+                            ),
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: Colors.blueAccent.withAlpha(20),
+                      ),
+                    ),
+                    LineChartBarData(
+                      spots: springSpots,
+                      isCurved: true,
+                      color: Colors.amber,
+                      barWidth: 3,
+                      isStrokeCapRound: true,
+                      dotData: FlDotData(
+                        show: true,
+                        getDotPainter: (spot, percent, barData, index) =>
+                            FlDotCirclePainter(
+                              radius: 4,
+                              color: Colors.amber,
+                              strokeWidth: 1.5,
+                              strokeColor: Colors.white,
+                            ),
+                      ),
+                      belowBarData: BarAreaData(
+                        show: true,
+                        color: Colors.amber.withAlpha(20),
+                      ),
+                    ),
+                  ],
+                  lineTouchData: LineTouchData(
+                    enabled: true,
+                    touchTooltipData: LineTouchTooltipData(
+                      getTooltipColor: (_) => Colors.blueGrey.withAlpha(230),
+                      getTooltipItems: (touchedSpots) {
+                        return touchedSpots.map((barSpot) {
+                          final String period = barSpot.barIndex == 0
+                              ? 'Otoño/Invierno'
+                              : 'Primavera/Verano';
+                          final String hourLabel =
+                              '${barSpot.x.toInt().toString().padLeft(2, '0')}:00';
+                          return LineTooltipItem(
+                            '$period ($hourLabel)\n${barSpot.y.toStringAsFixed(2)} USD',
+                            const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          );
+                        }).toList();
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _buildLegendItem(
+                  'Otoño/Invierno (Abril - Septiembre)',
+                  Colors.blueAccent,
+                ),
+                const SizedBox(width: 24),
+                _buildLegendItem(
+                  'Primavera/Verano (Octubre - Marzo)',
+                  Colors.amber,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLegendItem(String text, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: const TextStyle(
+            fontSize: 11,
+            color: Colors.grey,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
 
   // Pestaña 2: Seguimiento Cronológico (RF6)
   Widget _buildHistorialTab() {

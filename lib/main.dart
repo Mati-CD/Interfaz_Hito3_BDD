@@ -11,7 +11,7 @@ class MegaElectricApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Mega Electric CMG',
+      title: 'Interfaz CMG',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
       home: const LoginScreen(),

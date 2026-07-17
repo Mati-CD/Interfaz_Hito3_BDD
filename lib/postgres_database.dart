@@ -147,4 +147,40 @@ class PostgresDatabase {
     );
     return result.map((fila) => Map<String, dynamic>.from(fila)).toList();
   }
+
+  // 8. DETALLE: Obtener costos promedio por hora para un bloque, año y barra específicos
+  static Future<List<Map<String, dynamic>>> getCostosPorHora({
+    required int idBarra,
+    required int anio,
+    required int idBloque,
+  }) async {
+    final result = await DatabaseService.query(
+      '''
+        SELECT 
+          EXTRACT(HOUR FROM c.hora)::int as hora_num,
+          CASE 
+            WHEN t.nombre_temporada IN ('Otoño', 'Invierno') THEN 'Otoño/Invierno'
+            ELSE 'Primavera/Verano'
+          END as periodo_estacional,
+          COALESCE(AVG(c.valor_cmg), 0.0) as avg_valor
+        FROM costo_marginal c
+        JOIN temporada t ON c.id_temporada = t.id_temporada
+        WHERE c.id_barra = @idBarra 
+          AND c."año" = @anio 
+          AND c.id_bloquehorario = @idBloque
+        GROUP BY hora_num, periodo_estacional
+        ORDER BY hora_num, periodo_estacional
+      ''',
+      parameters: {
+        'idBarra': idBarra,
+        'anio': anio,
+        'idBloque': idBloque,
+      },
+    );
+    return result.map((fila) {
+      final map = Map<String, dynamic>.from(fila);
+      map['avg_valor'] = double.tryParse(map['avg_valor']?.toString() ?? '') ?? 0.0;
+      return map;
+    }).toList();
+  }
 }
